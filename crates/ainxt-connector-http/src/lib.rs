@@ -948,6 +948,14 @@ impl HttpRefreshExecutor {
 }
 impl RefreshExecutor for HttpRefreshExecutor {
     fn execute(&self, request: &TokenRequest) -> Result<TokenSet, String> {
+        // The form body carries the client secret and refresh/authorization-code grant — fail
+        // closed rather than send them to a plaintext endpoint (cleartext transmission / MITM).
+        if !request.token_endpoint.starts_with("https://") {
+            return Err(format!(
+                "refusing to send OAuth token request over a non-HTTPS endpoint: {}",
+                request.token_endpoint
+            ));
+        }
         let mut http = HttpRequest::post(request.token_endpoint.clone());
         http.headers.push((
             "Content-Type".into(),
@@ -1306,6 +1314,13 @@ impl ConnectorGateway {
         })?;
         // Exchange the code for tokens over the (air-gap-aware) transport (POST form, parse response).
         let req = &validated.token_request;
+        // The form body carries the client secret and authorization code — fail closed rather
+        // than send them to a plaintext endpoint (cleartext transmission / MITM).
+        if !req.token_endpoint.starts_with("https://") {
+            return Err(ConnectorCallError::Token(
+                "oauth token endpoint is not HTTPS".to_string(),
+            ));
+        }
         let mut http = HttpRequest::post(req.token_endpoint.clone());
         http.headers.push((
             "Content-Type".into(),

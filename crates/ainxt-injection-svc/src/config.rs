@@ -283,7 +283,10 @@ impl Default for ServiceConfig {
             judge_max_tokens: 1024,
             judge_cross_check_max_tokens: 2048,
             judge_model_max_tokens: std::collections::HashMap::new(),
-            judge_accept_invalid_certs: true,
+            // Secure by default: validate the LiteLLM proxy's TLS certificate unless an
+            // operator explicitly opts out (self-signed cert on a local/internal proxy) via
+            // `[judges] accept_invalid_certs = true` or `JUDGE_ACCEPT_INVALID_CERTS=true`.
+            judge_accept_invalid_certs: false,
             judge_pool_max_idle_per_host: 32,
             judge_pool_idle_timeout_secs: 60,
             max_chunks: 256,

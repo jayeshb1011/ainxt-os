@@ -619,23 +619,29 @@ pub fn validate_and_compile(
     }
 
     // Fail closed on a pathologically large intent BEFORE any per-item validation or allocation —
-    // an attacker does not need a valid query to exhaust memory, only a long list (CWE-789).
-    if intent.select.len() > MAX_QUERY_LIST_LEN
-        || intent.filters.len() > MAX_QUERY_LIST_LEN
-        || intent.order_by.len() > MAX_QUERY_LIST_LEN
-    {
+    // an attacker does not need a valid query to exhaust memory, only a long list (CWE-789/CWE-770).
+    // Each list is guarded individually, immediately before the allocation that sizes off of it, so
+    // the length used for `Vec::with_capacity` below is always provably <= MAX_QUERY_LIST_LEN by the
+    // time it is used (no reliance on a combined/earlier check or a `.min()` clamp at the call site).
+    if intent.select.len() > MAX_QUERY_LIST_LEN {
+        return Err(QueryError::TooManyItems);
+    }
+    if intent.filters.len() > MAX_QUERY_LIST_LEN {
+        return Err(QueryError::TooManyItems);
+    }
+    if intent.order_by.len() > MAX_QUERY_LIST_LEN {
         return Err(QueryError::TooManyItems);
     }
 
     // --- projection -------------------------------------------------------
-    let mut select_sql = Vec::with_capacity(intent.select.len().min(MAX_QUERY_LIST_LEN));
+    let mut select_sql = Vec::with_capacity(intent.select.len());
     for name in &intent.select {
         let col = resolve_readable(table, principal, name)?;
         select_sql.push(quote_ident(col.name()));
     }
 
     // --- filters (parameterized) -----------------------------------------
-    let mut where_sql: Vec<String> = Vec::with_capacity(intent.filters.len().min(MAX_QUERY_LIST_LEN));
+    let mut where_sql: Vec<String> = Vec::with_capacity(intent.filters.len());
     let mut params: Vec<Value> = Vec::new();
     let mut next_placeholder: usize = 1;
     for filter in &intent.filters {
@@ -674,7 +680,7 @@ pub fn validate_and_compile(
     }
 
     // --- ordering (authorized like a projection) --------------------------
-    let mut order_sql = Vec::with_capacity(intent.order_by.len().min(MAX_QUERY_LIST_LEN));
+    let mut order_sql = Vec::with_capacity(intent.order_by.len());
     for ob in &intent.order_by {
         let col = resolve_readable(table, principal, &ob.column)?;
         let dir = match ob.direction {

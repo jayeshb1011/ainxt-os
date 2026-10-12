@@ -1729,6 +1729,23 @@ mod reqwest_transport {
         fn send(&self, request: &HttpRequest) -> Result<HttpResponse, TransportError> {
             let method = reqwest::Method::from_bytes(request.method.as_str().as_bytes())
                 .map_err(|e| TransportError::Transport(e.to_string()))?;
+            // Requests carry auth headers / bodies, so never send them in cleartext: require
+            // https, allowing plain http only to a loopback host (local dev / test servers)
+            // (CWE-319 / rust/cleartext-transmission).
+            let url_lc = request.url.to_ascii_lowercase();
+            let is_https = url_lc.starts_with("https://");
+            let is_loopback_http = ["http://127.0.0.1", "http://localhost", "http://[::1]"]
+                .iter()
+                .any(|p| {
+                    url_lc.strip_prefix(p).is_some_and(|rest| {
+                        rest.is_empty() || rest.starts_with([':', '/', '?', '#'])
+                    })
+                });
+            if !(is_https || is_loopback_http) {
+                return Err(TransportError::Transport(
+                    "refusing to send a request over a non-HTTPS URL".to_string(),
+                ));
+            }
             let mut rb = self.client.request(method, &request.url);
             for (k, v) in &request.headers {
                 rb = rb.header(k, v);

@@ -634,14 +634,17 @@ pub fn validate_and_compile(
     }
 
     // --- projection -------------------------------------------------------
-    let mut select_sql = Vec::with_capacity(intent.select.len());
+    // No `with_capacity(intent.*.len())` here: sizing an allocation from caller-supplied length is
+    // the CodeQL rust/uncontrolled-allocation-size sink. The lists are already bounded by
+    // MAX_QUERY_LIST_LEN above, so letting the Vec grow on demand costs nothing meaningful.
+    let mut select_sql = Vec::new();
     for name in &intent.select {
         let col = resolve_readable(table, principal, name)?;
         select_sql.push(quote_ident(col.name()));
     }
 
     // --- filters (parameterized) -----------------------------------------
-    let mut where_sql: Vec<String> = Vec::with_capacity(intent.filters.len());
+    let mut where_sql: Vec<String> = Vec::new();
     let mut params: Vec<Value> = Vec::new();
     let mut next_placeholder: usize = 1;
     for filter in &intent.filters {
@@ -680,7 +683,7 @@ pub fn validate_and_compile(
     }
 
     // --- ordering (authorized like a projection) --------------------------
-    let mut order_sql = Vec::with_capacity(intent.order_by.len());
+    let mut order_sql = Vec::new();
     for ob in &intent.order_by {
         let col = resolve_readable(table, principal, &ob.column)?;
         let dir = match ob.direction {

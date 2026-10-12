@@ -1725,6 +1725,12 @@ mod reqwest_transport {
         }
     }
 
+    /// True when the parsed URL's host is a loopback literal (plain http is only tolerated there:
+    /// local dev / test servers). `host_str()` keeps the brackets on IPv6 literals.
+    fn is_loopback_url_host(u: &reqwest::Url) -> bool {
+        matches!(u.host_str(), Some("127.0.0.1") | Some("localhost") | Some("[::1]"))
+    }
+
     impl HttpTransport for ReqwestTransport {
         fn send(&self, request: &HttpRequest) -> Result<HttpResponse, TransportError> {
             let method = reqwest::Method::from_bytes(request.method.as_str().as_bytes())
@@ -1732,21 +1738,18 @@ mod reqwest_transport {
             // Requests carry auth headers / bodies, so never send them in cleartext: require
             // https, allowing plain http only to a loopback host (local dev / test servers)
             // (CWE-319 / rust/cleartext-transmission).
-            let url_lc = request.url.to_ascii_lowercase();
-            let is_https = url_lc.starts_with("https://");
-            let is_loopback_http = ["http://127.0.0.1", "http://localhost", "http://[::1]"]
-                .iter()
-                .any(|p| {
-                    url_lc.strip_prefix(p).is_some_and(|rest| {
-                        rest.is_empty() || rest.starts_with([':', '/', '?', '#'])
-                    })
-                });
-            if !(is_https || is_loopback_http) {
+            // Parse into a typed Url and decide from the PARSED scheme/host (not a string
+            // prefix), then send to that validated Url.
+            let parsed_url = reqwest::Url::parse(&request.url)
+                .map_err(|e| TransportError::Transport(format!("invalid request URL: {e}")))?;
+            let secure_scheme = parsed_url.scheme() == "https"
+                || (parsed_url.scheme() == "http" && is_loopback_url_host(&parsed_url));
+            if !secure_scheme {
                 return Err(TransportError::Transport(
                     "refusing to send a request over a non-HTTPS URL".to_string(),
                 ));
             }
-            let mut rb = self.client.request(method, &request.url);
+            let mut rb = self.client.request(method, parsed_url);
             for (k, v) in &request.headers {
                 rb = rb.header(k, v);
             }

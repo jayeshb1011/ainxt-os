@@ -450,7 +450,7 @@ fn redact_report_line(line: &str) -> String {
     if !SENSITIVE.iter().any(|k| lower.contains(k)) {
         return line.to_string();
     }
-    match line.find(|c| c == '=' || c == ':') {
+    match line.find(['=', ':']) {
         Some(idx) => format!("{} [redacted]", &line[..=idx]),
         None => "[redacted: line mentions a sensitive field]".to_string(),
     }

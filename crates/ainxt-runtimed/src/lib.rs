@@ -9097,7 +9097,9 @@ fn build_authenticator(
                  the verified claims, never spoofable headers)"
                     .into(),
             );
-            Ok(Arc::new(JwtSsoAuth::hs256(signing_material.as_bytes().to_vec())))
+            Ok(Arc::new(JwtSsoAuth::hs256(
+                signing_material.as_bytes().to_vec(),
+            )))
         }
     }
 }

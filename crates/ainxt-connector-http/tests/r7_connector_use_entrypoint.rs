@@ -262,7 +262,10 @@ fn r7_use_entrypoint_refreshes_stale_token_under_lock_and_dispatches_fresh() {
         DispatchResult::Ok(body) => {
             // Assert on the outcome only — do not echo the (untrusted, possibly user-identifying)
             // connector response body into a test-failure message/log.
-            assert!(body.contains("displayName"), "untrusted connector body missing 'displayName'");
+            assert!(
+                body.contains("displayName"),
+                "untrusted connector body missing 'displayName'"
+            );
         }
         other => panic!("expected Ok, got {other:?}"),
     }

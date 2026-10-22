@@ -94,7 +94,10 @@ fn r5_connector_capability_dispatches_through_registry() {
         DispatchResult::Ok(body) => {
             // Assert on the outcome only — do not echo the (untrusted) connector response body
             // into a test-failure message/log.
-            assert!(body.contains("\"id\":42"), "untrusted connector body missing expected id");
+            assert!(
+                body.contains("\"id\":42"),
+                "untrusted connector body missing expected id"
+            );
         }
         other => panic!("expected Ok, got {other:?}"),
     }

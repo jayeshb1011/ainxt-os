@@ -1728,7 +1728,10 @@ mod reqwest_transport {
     /// True when the parsed URL's host is a loopback literal (plain http is only tolerated there:
     /// local dev / test servers). `host_str()` keeps the brackets on IPv6 literals.
     fn is_loopback_url_host(u: &reqwest::Url) -> bool {
-        matches!(u.host_str(), Some("127.0.0.1") | Some("localhost") | Some("[::1]"))
+        matches!(
+            u.host_str(),
+            Some("127.0.0.1") | Some("localhost") | Some("[::1]")
+        )
     }
 
     impl HttpTransport for ReqwestTransport {

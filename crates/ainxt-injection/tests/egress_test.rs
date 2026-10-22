@@ -22,7 +22,10 @@ fn prefixed_provider_secrets_are_detected() {
         );
         // Assert on the redaction outcome only — never interpolate the raw secret fixture into a
         // failure message, so a copy-pasted pattern never leaks a real secret into CI logs later.
-        assert!(a.redacted.contains("[REDACTED:"), "{cat} fixture was not redacted");
+        assert!(
+            a.redacted.contains("[REDACTED:"),
+            "{cat} fixture was not redacted"
+        );
     }
 }
 
